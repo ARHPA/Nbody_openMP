@@ -293,27 +293,21 @@ public:
         }
 
         double total_time = 0;
-        // auto simulation_start = std::chrono::high_resolution_clock::now();
 
         for (int s = 0; s < seconds; ++s) {
             auto iteration_start = std::chrono::high_resolution_clock::now();
             BarnesHutTree tree(bodies, theta);
 
-            #pragma omp parallel
-            {
-                #pragma omp for
-                for (int i = 0; i < N; ++i) {
-                    Vector3D force = tree.computeForce(&bodies[i], G, softening);
-                    bodies[i].acc = {force.x / bodies[i].mass, 
-                                    force.y / bodies[i].mass, 
-                                    force.z / bodies[i].mass};
-                }
+            #pragma omp parallel for schedule(dynamic)
+            for (int i = 0; i < N; ++i) {
+                Vector3D f = tree.computeForce(&bodies[i], G, softening);
+                bodies[i].acc = f * (1.0 / bodies[i].mass);
+            }
 
-                #pragma omp for
-                for (int i = 0; i < N; ++i) {
-                    bodies[i].vel += bodies[i].acc * timeStep;
-                    bodies[i].pos += bodies[i].vel * timeStep;
-                }
+            #pragma omp parallel for
+            for (int i = 0; i < N; ++i) {
+                bodies[i].vel += bodies[i].acc * timeStep;
+                bodies[i].pos += bodies[i].vel * timeStep;
             }
 
             auto iteration_end = std::chrono::high_resolution_clock::now();
@@ -330,10 +324,7 @@ public:
             }
         }
         auto simulation_end = std::chrono::high_resolution_clock::now();
-        // double total_wall_time = std::chrono::duration<double>(simulation_end - simulation_start).count();
-        
         std::cerr << "\nSimulation time (computation only): " << total_time << " sec\n";
-        // std::cerr << "Total wall-clock time: " << total_wall_time << " sec\n";
     }
 
 };
