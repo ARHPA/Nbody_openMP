@@ -29,16 +29,16 @@ struct Vector3D {
     }
 };
 
-struct alignas(64) Body {
+struct alignas(128) Body {
     Vector3D pos;
-    Vector3D vel;
-    Vector3D acc;
-    double mass;
-    double radius;
-    bool collided;
-
-    Body(Vector3D p, Vector3D v, Vector3D a, double m, double r, bool c)
-        : pos(p), vel(v), acc(a), mass(m), radius(r), collided(c) {}
+    Vector3D vel; 
+    Vector3D acc; 
+    double mass; 
+    double radius; 
+    bool collided;  
+    
+    char padding[128 - (sizeof(pos) + sizeof(vel) + sizeof(acc) + 
+                       sizeof(mass) + sizeof(radius) + sizeof(collided))];
 };
 
 class OctreeNode {
@@ -92,7 +92,11 @@ public:
             insertBody(root, &bodies[i]);
         }
         
-        computeMassDistribution(root);
+        #pragma omp parallel
+        {
+            #pragma omp single
+            computeMassDistribution(root);
+        }
     }
 
     void insertBody(OctreeNode* node, const Body* body) {
@@ -124,17 +128,19 @@ public:
         Vector3D com{0,0,0};
 
         #pragma omp taskgroup
-        for (int i = 0; i < 8; ++i) {
-            #pragma omp task firstprivate(i)
-            computeMassDistribution(node->children[i]);
+        {
+            for (int i = 0; i < 8; ++i) {
+                #pragma omp task firstprivate(i) shared(node)
+                computeMassDistribution(node->children[i]);
+            }
         }
 
         for (int i = 0; i < 8; ++i) {
             auto* child = node->children[i];
             node->mass += child->mass;
-            com.x    += child->centerOfMass.x * child->mass;
-            com.y    += child->centerOfMass.y * child->mass;
-            com.z    += child->centerOfMass.z * child->mass;
+            com.x += child->centerOfMass.x * child->mass;
+            com.y += child->centerOfMass.y * child->mass;
+            com.z += child->centerOfMass.z * child->mass;
         }
 
         node->centerOfMass.x = com.x / node->mass;
