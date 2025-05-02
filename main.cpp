@@ -86,17 +86,17 @@ public:
 
         root = new OctreeNode(minBound, maxBound);
         
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (int i = 0; i < bodies.size(); ++i) {
-            #pragma omp critical
+            // #pragma omp critical
             insertBody(root, &bodies[i]);
         }
         
-        #pragma omp parallel
-        {
-            #pragma omp single
+        // #pragma omp parallel
+        // {
+        //     #pragma omp single
             computeMassDistribution(root);
-        }
+        // }
     }
 
     void insertBody(OctreeNode* node, const Body* body) {
@@ -278,7 +278,7 @@ private:
 
 class NBodySolver {
     const double G = 6.67430e-11;
-    const double softening = 10;
+    const double softening = 50;
     double timeStep = 1.0;
     double theta = 0.7;
 
@@ -365,7 +365,7 @@ int main(int argc, char* argv[]) {
             bodies.push_back({{x, y, z}, {0, 0, 0}, {0, 0, 0}, mass, radius, false});
         }
     } else {
-        srand(time(NULL));
+        // srand(time(NULL));
         for (int i = 0; i < num_bodies; ++i) {
             Vector3D pos = {
                 static_cast<double>(rand()%5000 - 2500),
